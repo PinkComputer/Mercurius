@@ -1,3 +1,7 @@
+//TO DO: Use hex crate to allow ipv6 to actually work
+//       Figure out how to send messages remotely rather than keeping everything local
+//       Pretty print the messages
+
 use std::{
     io::{prelude::*, BufReader},
     net::{TcpListener, TcpStream},
@@ -12,7 +16,7 @@ use std::{
 
 // use chrono::{NaiveDate, NaiveDateTime};
 
-use hex
+use hex;
 
 
 //At the time I was unaware there was already an IP address type and I was too prideful to switch
