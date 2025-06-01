@@ -353,7 +353,7 @@ fn main() {
     println!("Live chat only");
     
     let mut local_ip = String::new();
-    print!("Enter IP and port you would like connections to go to (ex:(127.0.0.1:7878) or ([2001:0db8:0000:0000:0000:8a2e:0370:7334]:7878) ):");
+    print!("Enter IP and port you would like connections to go to (ex:(127.0.0.1:7878) or ([2001:0db8:0:0:0:8a2e:0370:7334]:7878) ):");
     io::stdout().flush().unwrap();
     io::stdin()
         .read_line(&mut local_ip)
@@ -495,4 +495,20 @@ fn stream_reading(mut stream: TcpStream) {
     }
 
 
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ipv4_support() {
+        let _connection = TcpListener::bind(FullIp::connect_format(&(FullIp::from_str("(127.0.0.1:7878)").unwrap()))).expect("Ipv4 support failed!");
+    }
+    
+    #[test]
+    fn ipv6_support() {
+        let _connection = TcpListener::bind(FullIp::connect_format(&(FullIp::from_str("([2001:0db8:0:0:0:8a2e:0370:7334]:7878)").unwrap()))).expect("Ipv6 support failed!");
+    }
 }
