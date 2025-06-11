@@ -1,6 +1,7 @@
 //TO DO: Use hex crate to allow ipv6 to actually work
 //       Figure out how to send messages remotely rather than keeping everything local
 //       Pretty print the messages
+//       Aliases (this requires a SMALLLLLLL message struct rewrite)
 
 use std::{
     io::{prelude::*, BufReader},
