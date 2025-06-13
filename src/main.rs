@@ -1,7 +1,6 @@
 //TO DO: Use hex crate to allow ipv6 to actually work
 //       Figure out how to send messages remotely rather than keeping everything local
 //       Pretty print the messages
-//       Aliases (this requires a SMALLLLLLL message struct rewrite)
 
 use std::{
     io::{prelude::*, BufReader},
@@ -113,16 +112,19 @@ struct Message {
     from: IpAdd,
     from_public: u8,
     to_public: u8,
+    alias: String,
     message: String, 
    }
+
 impl Message {
     fn as_string(&self) -> String {
         format!("To: {0}, \n
 From: {1}, \n
 From_public: {2}, \n
 To_public: {3}, \n
-Message: {4} ",
-self.to, self.from, self.from_public, self.to_public, self.message,)
+Alias: {4}, \n
+Message: {5} ",
+self.to, self.from, self.from_public, self.to_public, self.alias, self.message,)
     }
 }
 
@@ -163,6 +165,11 @@ impl Message {
        let line = iter.next();
        let binding = line.expect("Iter is empty!").to_string();
        let line_iter = binding.split_once(":").expect("Spliting failed!").1;
+       let alias_request:String = line_iter.to_string();
+
+       let line = iter.next();
+       let binding = line.expect("Iter is empty!").to_string();
+       let line_iter = binding.split_once(":").expect("Spliting failed!").1;
        let message_request:String = line_iter.to_string();
 
        let result = Message {
@@ -170,6 +177,7 @@ impl Message {
            from: IpAdd::V4(from_ip_request),
            from_public: from_key_request,
            to_public: to_key_request,
+           alias: alias_request,
            message: message_request
         };
 
@@ -381,6 +389,18 @@ fn main() {
     
     let mut connection = TcpStream::connect(FullIp::connect_format(&remote_ip)).expect("Could not connect...");
 
+    let mut alias = String::new();
+    print!("What would you like your alias (username) to be? (Default is your IP): ");
+    io::stdout().flush().unwrap();
+    io::stdin()
+        .read_line(&mut alias)
+        .expect("Failed to read lines");
+    
+    match alias.trim() {
+        "" => alias = (format!("({})", connection.local_addr().unwrap().ip())),
+        _ => ()
+    }
+
     //connection.set_nonblocking(true).expect("set_nonblocking call failed");
 
     
@@ -392,7 +412,7 @@ fn main() {
     }
     */
     let write_thread = thread::spawn( || {
-        stream_writing(connection, remote_ip);
+        stream_writing(connection, remote_ip, alias);
     });
 
     let read_thread = thread::spawn( move || {
@@ -415,7 +435,7 @@ fn main() {
     
 }
 
-fn stream_writing(mut stream: TcpStream, remote: FullIp) {
+fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
     //println!("Handling connection!");
     //let buf_reader = BufReader::new(&stream);
     /*let http_request: Vec<_> = buf_reader
@@ -438,7 +458,7 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp) {
             "" => {
                 break;
             }
-            _ => println!("Sending...")
+            _ => ()
         }
 
 
@@ -448,7 +468,8 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp) {
             from: IpAdd::V4(Ipv4::from_str(&(format!("({})", stream.local_addr().unwrap().ip()))).unwrap()),
             from_public: 1,
             to_public: 2,
-            message: ent_message,
+            alias: user_alias.clone().trim().to_owned(),
+            message: ent_message.trim().to_owned(),
         };
      
      //let ip = "(192.0.0.1)";
