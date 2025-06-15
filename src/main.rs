@@ -1,5 +1,4 @@
-//TO DO: Use hex crate to allow ipv6 to actually work
-//       Figure out how to send messages remotely rather than keeping everything local
+//TO DO: Figure out how to send messages remotely rather than keeping everything local
 //       Pretty print the messages
 
 use std::{
@@ -12,6 +11,7 @@ use std::{
     //env,
     net::Shutdown,
     thread,
+    u16,
 };
 
 // use chrono::{NaiveDate, NaiveDateTime};
@@ -267,25 +267,25 @@ impl FullIp {
             .ok_or(FullIpParseError)?;
         //The iterator is started/moved, unwrapped into a string, parsed into u8, and then unwrapped
         //again. Is this a good way to do it? Prolly not
-        let u16_1_fromstr = iter.next().unwrap().parse::<u16>(); 
-        let u16_2_fromstr = iter.next().unwrap().parse::<u16>();
-        let u16_3_fromstr = iter.next().unwrap().parse::<u16>();
-        let u16_4_fromstr = iter.next().unwrap().parse::<u16>(); 
-        let u16_5_fromstr = iter.next().unwrap().parse::<u16>();
-        let u16_6_fromstr = iter.next().unwrap().parse::<u16>();
-        let u16_7_fromstr = iter.next().unwrap().parse::<u16>();
-        let u16_8_fromstr = iter.next().expect("Failed at u16_8").strip_suffix(']').unwrap().parse::<u16>();
+        let u16_1_fromstr = u16::from_str_radix(iter.next().unwrap(),16); 
+        let u16_2_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        let u16_3_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        let u16_4_fromstr = u16::from_str_radix(iter.next().unwrap(),16); 
+        let u16_5_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        let u16_6_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        let u16_7_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        let u16_8_fromstr = u16::from_str_radix((iter.next().expect("Failed at u16_8").strip_suffix(']').unwrap()),16);
         
-        
+        /*
         if (u16_1_fromstr.is_err()) {
             return Err(FullIpParseError)
         }
-        
+        */
 
         let ipadd = IpAdd::V6(Ipv6(u16_1_fromstr.unwrap(),u16_2_fromstr.unwrap(),u16_3_fromstr.unwrap(),u16_4_fromstr.unwrap(),u16_5_fromstr.unwrap(),u16_6_fromstr.unwrap(),u16_7_fromstr.unwrap(),u16_8_fromstr.unwrap()));
         let port = s
             .strip_suffix(')')
-            .and_then(|s| s.split(":").skip(5).next())
+            .and_then(|s| s.split(":").skip(6).next())
             .ok_or(FullIpParseError)?;
         let port_fromstring = port.parse::<u16>().map_err(|_| FullIpParseError)?;
         
@@ -531,6 +531,6 @@ mod tests {
     
     #[test]
     fn ipv6_support() {
-        let _connection = TcpListener::bind(FullIp::connect_format(&(FullIp::from_str("([2001:0db8:0:0:0:8a2e:0370:7334]:7878)").unwrap()))).expect("Ipv6 support failed!");
+        let _connection = TcpListener::bind(FullIp::connect_format(&(FullIp::from_str("([0:0:0:0:0:0:0:1]:7878)").unwrap()))).expect("Ipv6 support failed!");
     }
 }
