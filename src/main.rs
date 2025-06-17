@@ -40,8 +40,7 @@ impl FromStr for Ipv4 {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut iter = s
             .strip_prefix('(')
-            .and_then(|s| s.strip_suffix(')'))
-            .and_then(|s| Some(s.split('.')))
+            .and_then(|s| s.strip_suffix(')')).map(|s| s.split('.'))
             .ok_or(Ipv4ParseError)?;
         //The iterator is started/moved, unwrapped into a string, parsed into u8, and then unwrapped
         //again. Is this a good way to do it? Prolly not
@@ -80,8 +79,7 @@ impl FromStr for Ipv6 {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut iter = s
             .strip_prefix('(')
-            .and_then(|s| s.strip_suffix(')'))
-            .and_then(|s| Some(s.split(':')))
+            .and_then(|s| s.strip_suffix(')')).map(|s| s.split(':'))
             .ok_or(Ipv6ParseError)?;
         //The iterator is started/moved, unwrapped into a string, parsed into u16, and then unwrapped
         //again. Is this a good way to do it? Prolly not
@@ -169,16 +167,15 @@ impl Message {
        let line_iter = binding.split_once(":").expect("Spliting failed!").1;
        let message_request:String = line_iter.to_string();
 
-       let result = Message {
+       Message {
            to: IpAdd::V4(to_ip_request),
            from: IpAdd::V4(from_ip_request),
            from_public: from_key_request,
            to_public: to_key_request,
            alias: alias_request,
            message: message_request
-        };
+        }
 
-       return result
 
 
     }
@@ -216,8 +213,7 @@ impl FullIp {
     fn from_str_ipv4(s: &str) -> Result<Self, <FullIp as FromStr>::Err>  {
         let mut iter = s
             .strip_prefix('(')
-            .and_then(|s| s.strip_suffix(')'))
-            .and_then(|s| Some(s.split('.')))
+            .and_then(|s| s.strip_suffix(')')).map(|s| s.split('.'))
             .ok_or(FullIpParseError)?;
         //The iterator is started/moved, unwrapped into a string, parsed into u8, and then unwrapped
         //again. Is this a good way to do it? Prolly not
@@ -259,8 +255,7 @@ impl FullIp {
         let mut iter = s
             .strip_prefix('(')
             .and_then(|s| s.strip_suffix(')'))
-            .and_then(|s| s.strip_prefix('['))
-            .and_then(|s| Some(s.split(':')))
+            .and_then(|s| s.strip_prefix('[')).map(|s| s.split(':'))
             .ok_or(FullIpParseError)?;
         //The iterator is started/moved, unwrapped into a string, parsed into u8, and then unwrapped
         //again. Is this a good way to do it? Prolly not
@@ -285,7 +280,7 @@ impl FullIp {
 
         let port = s
             .strip_suffix(')')
-            .and_then(|s| s.split(":").skip(8).next());
+            .and_then(|s| s.split(":").nth(8));
             
         
         let port_fromstring = port.expect("Port not parsed correctly!").parse::<u16>().map_err(|_| FullIpParseError)?;
@@ -488,7 +483,7 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
         
         let _ = stream.shutdown(Shutdown::Write);
 
-        let _ = stream = TcpStream::connect(FullIp::connect_format(&remote)).expect("Lost connection...");
+        stream = TcpStream::connect(FullIp::connect_format(&remote)).expect("Lost connection...");
 
 
         
