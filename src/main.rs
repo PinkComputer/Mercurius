@@ -11,12 +11,9 @@ use std::{
     //env,
     net::Shutdown,
     thread,
-    u16,
 };
 
 // use chrono::{NaiveDate, NaiveDateTime};
-
-use hex;
 
 
 //At the time I was unaware there was already an IP address type and I was too prideful to switch
@@ -195,8 +192,8 @@ enum IpAdd {
 impl fmt::Display for IpAdd {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
-            IpAdd::V4(Ip_v4) => write!(f, "({}.{}.{}.{})", Ip_v4.0, Ip_v4.1, Ip_v4.2, Ip_v4.3),
-            IpAdd::V6(Ip_v6) => write!(f, "({}:{}:{}:{}:{}:{}:{}:{})", Ip_v6.0, Ip_v6.1, Ip_v6.2, Ip_v6.3, Ip_v6.4, Ip_v6.5, Ip_v6.6, Ip_v6.7)
+            IpAdd::V4(ip_v4) => write!(f, "({}.{}.{}.{})", ip_v4.0, ip_v4.1, ip_v4.2, ip_v4.3),
+            IpAdd::V6(ip_v6) => write!(f, "({:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x})", ip_v6.0, ip_v6.1, ip_v6.2, ip_v6.3, ip_v6.4, ip_v6.5, ip_v6.6, ip_v6.7)
         }
     }
 }
@@ -225,7 +222,7 @@ impl FullIp {
         //The iterator is started/moved, unwrapped into a string, parsed into u8, and then unwrapped
         //again. Is this a good way to do it? Prolly not
 
-        if (iter.clone().count() <= 1usize) {
+        if iter.clone().count() <= 1usize {
             return Err(FullIpParseError);
         }
 
@@ -235,7 +232,7 @@ impl FullIp {
         let u8_4_fromstr = iter.next().expect("Failed at u8_4").split_once(":").unwrap().0.parse();
         
         
-        if (u8_1_fromstr.is_err()) {
+        if u8_1_fromstr.is_err() {
             return Err(FullIpParseError)
         }
         
@@ -274,20 +271,24 @@ impl FullIp {
         let u16_5_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
         let u16_6_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
         let u16_7_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
-        let u16_8_fromstr = u16::from_str_radix((iter.next().expect("Failed at u16_8").strip_suffix(']').unwrap()),16);
+        let u16_8_fromstr = u16::from_str_radix(iter.next().expect("Failed at u16_8").strip_suffix(']').unwrap(),16);
         
         /*
-        if (u16_1_fromstr.is_err()) {
+        if u16_1_fromstr.is_err() {
             return Err(FullIpParseError)
         }
         */
 
         let ipadd = IpAdd::V6(Ipv6(u16_1_fromstr.unwrap(),u16_2_fromstr.unwrap(),u16_3_fromstr.unwrap(),u16_4_fromstr.unwrap(),u16_5_fromstr.unwrap(),u16_6_fromstr.unwrap(),u16_7_fromstr.unwrap(),u16_8_fromstr.unwrap()));
+
+        println!("{}", s);
+
         let port = s
             .strip_suffix(')')
-            .and_then(|s| s.split(":").skip(6).next())
-            .ok_or(FullIpParseError)?;
-        let port_fromstring = port.parse::<u16>().map_err(|_| FullIpParseError)?;
+            .and_then(|s| s.split(":").skip(8).next());
+            
+        
+        let port_fromstring = port.expect("Port not parsed correctly!").parse::<u16>().map_err(|_| FullIpParseError)?;
         
         Ok(FullIp{address:ipadd, port:port_fromstring})
         
@@ -338,15 +339,15 @@ impl FromStr for FullIp {
 impl fmt::Display for FullIp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.address {
-            IpAdd::V4(Ip_v4) => write!(f, "({}.{}.{}.{}:{})", Ip_v4.0, Ip_v4.1, Ip_v4.2, Ip_v4.3, self.port),
-            IpAdd::V6(Ip_v6) => write!(f, "([{}:{}:{}:{}:{}:{}:{}:{}]:{})", Ip_v6.0, Ip_v6.1, Ip_v6.2, Ip_v6.3, Ip_v6.4, Ip_v6.5, Ip_v6.6, Ip_v6.7, self.port)
+            IpAdd::V4(ip_v4) => write!(f, "({}.{}.{}.{}:{})", ip_v4.0, ip_v4.1, ip_v4.2, ip_v4.3, self.port),
+            IpAdd::V6(ip_v6) => write!(f, "([{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}]:{})", ip_v6.0, ip_v6.1, ip_v6.2, ip_v6.3, ip_v6.4, ip_v6.5, ip_v6.6, ip_v6.7, self.port)
         }
     }
 }
 
 impl FullIp {
     fn connect_format(&self) -> String { 
-        return format!("{}", self).strip_prefix('(').expect("prefix").strip_suffix(')').expect("suffix").to_string();
+        format!("{}", self).strip_prefix('(').expect("prefix").strip_suffix(')').expect("suffix").to_string()
     }
 }
 
@@ -371,7 +372,7 @@ fn main() {
     
 
     let local_ip: FullIp = FullIp::from_str(local_ip.trim()).expect("Invalid address! Exiting...");
-    let mut listener = TcpListener::bind(FullIp::connect_format(&local_ip)).expect("Listener could not be set up...");
+    let listener = TcpListener::bind(FullIp::connect_format(&local_ip)).expect("Listener could not be set up...");
 
 
 
@@ -382,12 +383,13 @@ fn main() {
     io::stdin()
         .read_line(&mut remote_ip)
         .expect("Failed to read lines");
+
     
     let remote_ip: FullIp = FullIp::from_str(remote_ip.trim()).expect("Invalid address! Exiting...");
 
     //println!("{}", FullIp::connect_format(&remote_ip));
     
-    let mut connection = TcpStream::connect(FullIp::connect_format(&remote_ip)).expect("Could not connect...");
+    let connection = TcpStream::connect(FullIp::connect_format(&remote_ip)).expect("Could not connect...");
 
     let mut alias = String::new();
     print!("What would you like your alias (username) to be? (Default is your IP): ");
@@ -396,9 +398,8 @@ fn main() {
         .read_line(&mut alias)
         .expect("Failed to read lines");
     
-    match alias.trim() {
-        "" => alias = (format!("({})", connection.local_addr().unwrap().ip())),
-        _ => ()
+    if alias.trim() == "" {
+        alias = format!("({})", connection.local_addr().unwrap().ip());
     }
 
     //connection.set_nonblocking(true).expect("set_nonblocking call failed");
@@ -415,7 +416,7 @@ fn main() {
         stream_writing(connection, remote_ip, alias);
     });
 
-    let read_thread = thread::spawn( move || {
+    let _read_thread = thread::spawn( move || {
         let listener_copy = listener;
         for stream in listener_copy.incoming() {
             stream_reading(stream.unwrap());
@@ -454,11 +455,8 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
             .read_line(&mut ent_message)
             .expect("Failed to read line");
 
-        match ent_message.trim() {
-            "" => {
-                break;
-            }
-            _ => ()
+        if ent_message.trim() == ""{
+            break;
         }
 
 
@@ -485,12 +483,12 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
      //println!("{}", message_iter.clone().count());
         
         for line in message_iter{
-            stream.write(line.to_string().as_bytes());
+            let _ = stream.write(line.to_string().as_bytes());
         }
         
-        stream.shutdown(Shutdown::Write);
+        let _ = stream.shutdown(Shutdown::Write);
 
-        stream = TcpStream::connect(FullIp::connect_format(&remote)).expect("Lost connection...");
+        let _ = stream = TcpStream::connect(FullIp::connect_format(&remote)).expect("Lost connection...");
 
 
         
@@ -501,7 +499,7 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
 }
 
 
-fn stream_reading(mut stream: TcpStream) {
+fn stream_reading(stream: TcpStream) {
     let buf_reader = BufReader::new(&stream);
     let tcp_request: Vec<_> = buf_reader
         .lines()
@@ -509,11 +507,11 @@ fn stream_reading(mut stream: TcpStream) {
         .take_while(|line| !line.is_empty())
         .collect();
     
-    println!("Request: {tcp_request:#?}");
+    //println!("Request: {tcp_request:#?}");
 
     for message in tcp_request {
 
-        println!("Message: \n {}", format!("{}",Message::from_request(&message)))
+        println!("Message: \n {}", Message::from_request(&message))
     }
 
 
@@ -526,11 +524,12 @@ mod tests {
 
     #[test]
     fn ipv4_support() {
-        let _connection = TcpListener::bind(FullIp::connect_format(&(FullIp::from_str("(127.0.0.1:7878)").unwrap()))).expect("Ipv4 support failed!");
+        let _listener = TcpListener::bind(FullIp::connect_format(&(FullIp::from_str("(127.0.0.1:7878)").unwrap()))).expect("Ipv4 support failed!");
     }
     
     #[test]
     fn ipv6_support() {
-        let _connection = TcpListener::bind(FullIp::connect_format(&(FullIp::from_str("([0:0:0:0:0:0:0:1]:7878)").unwrap()))).expect("Ipv6 support failed!");
+        let _listener = TcpListener::bind(FullIp::connect_format(&(FullIp::from_str("([0:0:0:0:0:0:0:1]:7878)").unwrap()))).expect("Ipv6 support failed!");
+        let _connection = TcpStream::connect(FullIp::connect_format(&(FullIp::from_str("([0:0:0:0:0:0:0:1]:7878)").unwrap()))).expect("Ipv6 support failed!");
     }
 }
