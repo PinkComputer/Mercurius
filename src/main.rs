@@ -114,19 +114,25 @@ struct Message {
 impl Message {
     fn as_string(&self) -> String {
         format!("To: {0}, \n
-From: {1}, \n
-From_public: {2}, \n
-To_public: {3}, \n
-Alias: {4}, \n
-Message: {5} ",
+From:{1}, \n
+From_public:{2}, \n
+To_public:{3}, \n
+Alias:{4}, \n
+Message:{5} ",
 self.to, self.from, self.from_public, self.to_public, self.alias, self.message,)
+    }
+}
+
+impl Message {
+    fn pretty_print(&self) -> String {
+        format!("{0}: {1}",self.alias, self.message,)
     }
 }
 
 
 impl fmt::Display for Message {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", Message::as_string(self))
+        write!(f, "{}", Message::pretty_print(self))
     }
 }
 
@@ -440,9 +446,11 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
         .take_while(|line| !line.is_empty())
         .collect();
     */
+
+    println!("Enter messages (Enter nothing to exit): ");
+
     loop {
-        print!("Enter Message (Enter nothing to exit): ");
-        io::stdout().flush().unwrap();
+                
 
         let mut ent_message = String::new();
 
@@ -506,7 +514,7 @@ fn stream_reading(stream: TcpStream) {
 
     for message in tcp_request {
 
-        println!("Message: \n {}", Message::from_request(&message))
+        println!("{}", Message::from_request(&message))
     }
 
 
