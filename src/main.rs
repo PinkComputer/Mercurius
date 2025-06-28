@@ -42,14 +42,25 @@ impl FromStr for Ipv4 {
             .strip_prefix('(')
             .and_then(|s| s.strip_suffix(')')).map(|s| s.split('.'))
             .ok_or(Ipv4ParseError)?;
+
+        if iter.clone().count() <= 1usize {
+            return Err(Ipv4ParseError);
+        }
+
         //The iterator is started/moved, unwrapped into a string, parsed into u8, and then unwrapped
         //again. Is this a good way to do it? Prolly not
-        let u8_1_fromstr: u8 = iter.next().unwrap().parse().unwrap(); 
-        let u8_2_fromstr: u8 = iter.next().unwrap().parse().unwrap();
-        let u8_3_fromstr: u8 = iter.next().unwrap().parse().unwrap();
-        let u8_4_fromstr: u8 = iter.next().unwrap().parse().unwrap();
+        let u8_1_fromstr = iter.next().unwrap().parse::<u8>();
+        let u8_2_fromstr = iter.next().unwrap().parse::<u8>();
+        let u8_3_fromstr = iter.next().unwrap().parse::<u8>();
+        let u8_4_fromstr = iter.next().expect("Failed at u8_4").split_once(":").unwrap().0.parse();
+        
+        
+        if u8_1_fromstr.is_err() {
+            return Err(Ipv4ParseError)
+        }
+         
 
-        Ok(Ipv4(u8_1_fromstr,u8_2_fromstr,u8_3_fromstr,u8_4_fromstr))
+        Ok(Ipv4(u8_1_fromstr.unwrap(),u8_2_fromstr.unwrap(),u8_3_fromstr.unwrap(),u8_4_fromstr.unwrap()))
      
 
     }
@@ -83,17 +94,27 @@ impl FromStr for Ipv6 {
             .ok_or(Ipv6ParseError)?;
         //The iterator is started/moved, unwrapped into a string, parsed into u16, and then unwrapped
         //again. Is this a good way to do it? Prolly not
-        let u16_1_fromstr: u16 = iter.next().unwrap().parse().unwrap(); 
-        let u16_2_fromstr: u16 = iter.next().unwrap().parse().unwrap();
-        let u16_3_fromstr: u16 = iter.next().unwrap().parse().unwrap();
-        let u16_4_fromstr: u16 = iter.next().unwrap().parse().unwrap();
-        let u16_5_fromstr: u16 = iter.next().unwrap().parse().unwrap(); 
-        let u16_6_fromstr: u16 = iter.next().unwrap().parse().unwrap();
-        let u16_7_fromstr: u16 = iter.next().unwrap().parse().unwrap();
-        let u16_8_fromstr: u16 = iter.next().unwrap().parse().unwrap();
+        //
+        //([2603:6011:f73a:f397:c5f0:19d8:4c13:6a8b])
+        let u16_1_fromstr = u16::from_str_radix(iter.next().unwrap(),16); 
+        let u16_2_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        let u16_3_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        let u16_4_fromstr = u16::from_str_radix(iter.next().unwrap(),16); 
+        let u16_5_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        let u16_6_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        let u16_7_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        let u16_8_fromstr = u16::from_str_radix(iter.next().unwrap(),16);
+        
+        /*
+        if u16_1_fromstr.is_err() {
+            return Err(FullIpParseError)
+        }
+        */
 
 
-        Ok(Ipv6(u16_1_fromstr,u16_2_fromstr,u16_3_fromstr,u16_4_fromstr,u16_5_fromstr,u16_6_fromstr,u16_7_fromstr,u16_8_fromstr))
+
+
+        Ok(Ipv6(u16_1_fromstr.unwrap(),u16_2_fromstr.unwrap(),u16_3_fromstr.unwrap(),u16_4_fromstr.unwrap(),u16_5_fromstr.unwrap(),u16_6_fromstr.unwrap(),u16_7_fromstr.unwrap(),u16_8_fromstr.unwrap()))
      
 
     }
@@ -146,12 +167,12 @@ impl Message {
 
        let line = iter.next();
        let line_iter = line.expect("Iter is empty!").to_string().split_once(":").expect("Spliting failed!").1.to_owned();
-       let to_ip_request: Ipv4  = Ipv4::from_str(line_iter.to_string().trim()).unwrap();
+       let to_ip_request  = IpAdd::from_str(line_iter.to_string().trim()).unwrap();
 
        let line = iter.next();
        let binding = line.expect("Iter is empty!").to_string();
        let line_iter = binding.split_once(":").expect("Spliting failed!").1;
-       let from_ip_request: Ipv4  = Ipv4::from_str(line_iter.to_string().trim()).unwrap();
+       let from_ip_request  = IpAdd::from_str(line_iter.to_string().trim()).unwrap();
 
        let line = iter.next();
        let binding = line.expect("Iter is empty!").to_string();
@@ -174,16 +195,13 @@ impl Message {
        let message_request:String = line_iter.to_string();
 
        Message {
-           to: IpAdd::V4(to_ip_request),
-           from: IpAdd::V4(from_ip_request),
+           to: to_ip_request,
+           from: from_ip_request,
            from_public: from_key_request,
            to_public: to_key_request,
            alias: alias_request,
            message: message_request
         }
-
-
-
     }
 }
 #[derive(Clone)]
@@ -200,6 +218,30 @@ impl fmt::Display for IpAdd {
         }
     }
 }
+
+#[derive(Debug)]
+struct IpAddError; 
+impl fmt::Display for IpAddError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Invaild address: {}", (format!("{}", self)))
+    }
+}
+
+
+impl IpAdd {
+    fn from_str(s: &str) -> Result <Self, IpAddError> {
+        let ipv4_result = Ipv4::from_str(s);
+        let ipadd_str = match ipv4_result {
+            Ok(ipadd_str) => IpAdd::V4(ipadd_str),
+            Err(_error) => match Ipv6::from_str(s) {
+                Ok(ip) => IpAdd::V6(ip),
+                Err(e) => panic!("Cannot create string!: {e:?}")
+            }
+        };
+        Ok(ipadd_str)
+    }
+}
+
 
 #[derive(Clone)]
 struct FullIp {
@@ -279,10 +321,10 @@ impl FullIp {
             return Err(FullIpParseError)
         }
         */
-
+        
         let ipadd = IpAdd::V6(Ipv6(u16_1_fromstr.unwrap(),u16_2_fromstr.unwrap(),u16_3_fromstr.unwrap(),u16_4_fromstr.unwrap(),u16_5_fromstr.unwrap(),u16_6_fromstr.unwrap(),u16_7_fromstr.unwrap(),u16_8_fromstr.unwrap()));
 
-        println!("{}", s);
+        //println!("{}", s);
 
         let port = s
             .strip_suffix(')')
@@ -319,6 +361,7 @@ impl FromStr for FullIp {
             .ok_or(Ipv4ParseError)?;
     //The iterator is started/moved, unwrapped into a string, parsed into u8, and then unwrapped
         //again. Is this a good way to do it? Prolly not
+
         let u8_1_fromstr: u8 = iter.next().unwrap().parse().unwrap(); 
         let u8_2_fromstr: u8 = iter.next().unwrap().parse().unwrap();
         let u8_3_fromstr: u8 = iter.next().unwrap().parse().unwrap();
@@ -466,7 +509,7 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
 
         let response_message = Message {
             to: remote.address.clone(),
-            from: IpAdd::V4(Ipv4::from_str(&(format!("({})", stream.local_addr().unwrap().ip()))).unwrap()),
+            from: (IpAdd::from_str(&(format!("({})", stream.local_addr().unwrap().ip()))).unwrap()),
             from_public: 1,
             to_public: 2,
             alias: user_alias.clone().trim().to_owned(),
