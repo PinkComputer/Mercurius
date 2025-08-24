@@ -1,7 +1,4 @@
-//TO DO: Figure out how to send messages remotely rather than keeping everything local
-//       Pretty print the messages
-//       Graceful exit
-//       Actual packet writing
+//TO DO: Actual packet writing
 //       VOIP, maybe????
 use std::{
     io::{prelude::*, BufReader},
@@ -10,6 +7,8 @@ use std::{
     net::Shutdown,
     thread,
     //env,
+    sync::mpsc,
+    sync::mpsc::Sender,
 };
 
 mod networking;
@@ -28,7 +27,7 @@ fn main() {
     println!("Live chat only");
     
     let mut local_ip = String::new();
-    print!("Enter IP and port you would like connections to go to (ex:(127.0.0.1:7878) or ([0:0:0:0:0:0:0:0]:7878) ):");
+    print!("Enter IP and port you would like connections to go to (ex:(127.0.0.1:7878) or ([0:0:0:0:0:0:0:1]:7878)):");
     io::stdout().flush().unwrap();
     io::stdin()
         .read_line(&mut local_ip)
@@ -65,6 +64,8 @@ fn main() {
     
     if alias.trim() == "" {
         alias = format!("({})", connection.local_addr().unwrap().ip());
+    } else {
+        alias = alias.trim().to_string();
     }
 
     //connection.set_nonblocking(true).expect("set_nonblocking call failed");
@@ -77,18 +78,26 @@ fn main() {
         println!("Goddamn it");
     }
     */
+    let (tx, rx) = mpsc::channel(); 
+    let write_tx = tx.clone();
     let write_thread = thread::spawn( || {
-        stream_writing(connection, remote_ip, alias);
+        stream_writing(connection, remote_ip, alias, write_tx, local_ip);
     });
 
-    let _read_thread = thread::spawn( move || {
+
+    let read_thread = thread::spawn( move || {
         let listener_copy = listener;
+        tx.send(0).unwrap();
         for stream in listener_copy.incoming() {
+            if rx.recv().unwrap() == 1 { 
+                return
+            }
             stream_reading(stream.unwrap());
         }
     });
 
     write_thread.join().unwrap();
+    read_thread.join().unwrap();
 
     //let listener = TcpListener::bind("127.0.0.1:7879").unwrap();
     
@@ -101,7 +110,7 @@ fn main() {
     
 }
 
-fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
+fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String, channel: Sender<u16>, listener: FullIp) {
     //println!("Handling connection!");
     //let buf_reader = BufReader::new(&stream);
     /*let http_request: Vec<_> = buf_reader
@@ -115,7 +124,8 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
 
     loop {
                 
-
+        print!("{user_alias}: ");
+        io::stdout().flush().unwrap();
         let mut ent_message = String::new();
 
         io::stdin()
@@ -123,7 +133,16 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
             .expect("Failed to read line");
 
         if ent_message.trim() == ""{
-            break;
+            channel.send(1).unwrap();
+            // Okay lemme explain this stupidity
+            // Reader can't do the check for the shutdown signal until their is something in the
+            // listener's buffer to actually read.
+            // So we just send a space rq to force it to check for a shutdown signal
+            let mut killer = TcpStream::connect(FullIp::connect_format(&listener)).expect("Could not connect...");
+            killer.write(b" ");
+            killer.shutdown(Shutdown::Both).expect("Reader killer shutdown failed?");
+            stream.shutdown(Shutdown::Both).expect("Writing shutdown call failed?");
+            return;
         }
 
 
@@ -157,7 +176,7 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String) {
 
         stream = TcpStream::connect(FullIp::connect_format(&remote)).expect("Lost connection...");
 
-
+        channel.send(0).unwrap();
         
      //stream.write_all(response_message.as_string().split("/n").next().unwrap().as_bytes());
      
