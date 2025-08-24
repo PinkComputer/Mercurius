@@ -10,3 +10,6 @@ It came to me in a dream
 
 ### **Why the name Mercurius?**
 I am a latin student, Mercury is the Roman messenger of the gods, and I couldn't do the latin name for crab.
+
+### **Remote Messaging?**
+Use port forwarding idk it should work in theory
