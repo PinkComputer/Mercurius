@@ -139,7 +139,7 @@ fn stream_writing(mut stream: TcpStream, remote: FullIp, user_alias: String, cha
             // listener's buffer to actually read.
             // So we just send a space rq to force it to check for a shutdown signal
             let mut killer = TcpStream::connect(FullIp::connect_format(&listener)).expect("Could not connect...");
-            killer.write(b" ");
+            _ = killer.write(b" ");
             killer.shutdown(Shutdown::Both).expect("Reader killer shutdown failed?");
             stream.shutdown(Shutdown::Both).expect("Writing shutdown call failed?");
             return;
